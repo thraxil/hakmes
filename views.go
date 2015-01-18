@@ -44,10 +44,11 @@ func infoHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 }
 
 type postResponse struct {
-	Key       string `json:"key"`
-	Extension string `json:"extension"`
-	MimeType  string `json:"mimetype"`
-	Size      int64  `json:"size"`
+	Key       string   `json:"key"`
+	Extension string   `json:"extension"`
+	MimeType  string   `json:"mimetype"`
+	Size      int64    `json:"size"`
+	Chunks    []string `json:"chunks"`
 }
 
 func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
