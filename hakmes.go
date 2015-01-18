@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -22,6 +24,8 @@ type Config struct {
 
 	CaskBase  string `envconfig:"CASK_BASE"`
 	ChunkSize int64  `envconfig:"CHUNK_SIZE"`
+
+	DBPath string `envconfig:"DB_PATH"`
 }
 
 func main() {
@@ -31,7 +35,14 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	s := NewSite(c.CaskBase, c.ChunkSize)
+	db, err := bolt.Open(c.DBPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	s := NewSite(c.CaskBase, c.ChunkSize, db)
+	s.EnsureBuckets()
 
 	log.Println("=== Hakmes starting ===============")
 	log.Printf("running on http://localhost:%d\n", c.Port)

@@ -90,7 +90,7 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 	// if we already have an entry for that hash, we're done
 	// split into chunks
 	num_chunks := 0
-	chunk_keys := make([]Key, 0)
+	chunk_keys := make([]string, 0)
 	buf := make([]byte, s.ChunkSize)
 	for {
 		// upload each chunk to cask
@@ -103,7 +103,7 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 				http.Error(w, "failed to write to cask", 500)
 				return
 			}
-			chunk_keys = append(chunk_keys, key)
+			chunk_keys = append(chunk_keys, key.String())
 		}
 		if er == io.EOF {
 			break
@@ -112,14 +112,16 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 	log.Printf("%d chunks\n", num_chunks)
 	log.Printf("%v\n", chunk_keys)
 	// write db entry
-
-	// return hash and info
 	pr := postResponse{
 		Key:       key.String(),
 		Size:      size,
 		Extension: extension,
 		MimeType:  mimetype,
+		Chunks:    chunk_keys,
 	}
+	s.Add(pr)
+	// return hash and info
+
 	b, err := json.Marshal(pr)
 	if err != nil {
 		http.Error(w, "json error", 500)
