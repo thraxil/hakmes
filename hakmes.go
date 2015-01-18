@@ -10,6 +10,7 @@ import (
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, *Site), s *Site) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s\n", r.Method, r.URL.String())
 		fn(w, r, s)
 	}
 }
@@ -33,7 +34,9 @@ func main() {
 	s := NewSite(c.CaskBase, c.ChunkSize)
 
 	log.Println("=== Hakmes starting ===============")
+	log.Printf("running on http://localhost:%d\n", c.Port)
 	log.Println("using Cask at " + c.CaskBase)
+	log.Printf("chunk size: %d bytes\n", c.ChunkSize)
 	log.Println("===================================")
 
 	http.HandleFunc("/", makeHandler(indexHandler, s))
