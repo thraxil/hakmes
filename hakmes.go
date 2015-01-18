@@ -30,7 +30,7 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	s := NewSite(c.CaskBase)
+	s := NewSite(c.CaskBase, c.ChunkSize)
 
 	log.Println("=== Hakmes starting ===============")
 	log.Println("using Cask at " + c.CaskBase)
