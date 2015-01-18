@@ -18,7 +18,9 @@ type Config struct {
 	Port     int
 	SSL_Cert string `envconfig:"SSL_CERT"`
 	SSL_Key  string `envconfig:"SSL_Key"`
-	CaskBase string `envconfig:"CASK_BASE"`
+
+	CaskBase  string `envconfig:"CASK_BASE"`
+	ChunkSize int64  `envconfig:"CHUNK_SIZE"`
 }
 
 func main() {
