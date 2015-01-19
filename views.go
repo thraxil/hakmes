@@ -198,6 +198,9 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 		if found != true {
 			http.Error(w, "file not found", 404)
 		}
+
+		log.Println(metadata.MimeType)
+		w.Header().Set("Content-Type", metadata.MimeType)
 		for _, key := range metadata.Chunks {
 			data, err := getChunkFromCask(key, s.CaskRetrieveBase())
 			if err != nil {
@@ -205,10 +208,13 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 				return
 			}
 			w.Write(data)
-			// TODO: flush after each chunk
+			if f, ok := w.(http.Flusher); ok {
+				log.Println("*flush*")
+				f.Flush()
+			} else {
+				log.Println("not a flusher")
+			}
 		}
-		// TODO: set mimetype
-		// TODO: handle filename/extension
 	} else {
 		http.Error(w, "bad request", 400)
 	}
