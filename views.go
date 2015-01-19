@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -182,6 +183,56 @@ func postFile(f io.Reader, target_url string) (*http.Response, error) {
 	//	req.Header.Set("X-Cask-Cluster-Secret", secret)
 
 	return c.Do(req)
+}
+
+func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
+	parts := strings.Split(r.URL.String(), "/")
+	if len(parts) == 4 {
+		key := parts[2]
+		k, err := KeyFromString(key)
+		if err != nil {
+			http.Error(w, "invalid key", 400)
+			return
+		}
+		metadata, found := s.Get(k)
+		if found != true {
+			http.Error(w, "file not found", 404)
+		}
+		for _, key := range metadata.Chunks {
+			data, err := getChunkFromCask(key, s.CaskRetrieveBase())
+			if err != nil {
+				http.Error(w, "cask retrieve failed", 500)
+				return
+			}
+			w.Write(data)
+			// TODO: flush after each chunk
+		}
+		// TODO: set mimetype
+		// TODO: handle filename/extension
+	} else {
+		http.Error(w, "bad request", 400)
+	}
+}
+
+func getChunkFromCask(key, cask_base string) ([]byte, error) {
+	log.Printf("getChunkFromCask(%s)\n", key)
+	url := cask_base + key + "/"
+	c := http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	//	req.Header.Set("X-Cask-Cluster-Secret", secret)
+	resp, err := c.Do(req)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if resp.Status != "200 OK" {
+		return nil, errors.New("404, probably")
+	}
+	b, _ := ioutil.ReadAll(resp.Body)
+	return b, nil
 }
 
 func faviconHandler(w http.ResponseWriter, r *http.Request) {

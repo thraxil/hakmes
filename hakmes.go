@@ -51,6 +51,7 @@ func main() {
 	log.Println("===================================")
 
 	http.HandleFunc("/", makeHandler(indexHandler, s))
+	http.HandleFunc("/file/", makeHandler(retrieveHandler, s))
 	http.HandleFunc("/favicon.ico", faviconHandler)
 
 	if c.SSL_Cert != "" && c.SSL_Key != "" {
