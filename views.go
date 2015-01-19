@@ -89,6 +89,17 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 	f.Seek(0, 0)
 	log.Println("calculated hash")
 	// if we already have an entry for that hash, we're done
+	pr, found := s.Get(key)
+	if found {
+		log.Println("already had an entry for this key in the database")
+		b, err := json.Marshal(pr)
+		if err != nil {
+			http.Error(w, "json error", 500)
+			return
+		}
+		w.Write(b)
+		return
+	}
 	// split into chunks
 	num_chunks := 0
 	chunk_keys := make([]string, 0)
@@ -113,7 +124,7 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 	log.Printf("%d chunks\n", num_chunks)
 	log.Printf("%v\n", chunk_keys)
 	// write db entry
-	pr := postResponse{
+	pr = postResponse{
 		Key:       key.String(),
 		Size:      size,
 		Extension: extension,
