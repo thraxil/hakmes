@@ -87,7 +87,6 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 		return
 	}
 	f.Seek(0, 0)
-	log.Println("calculated hash")
 	// if we already have an entry for that hash, we're done
 	pr, found := s.Get(key)
 	if found {
@@ -122,7 +121,6 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 		}
 	}
 	log.Printf("%d chunks\n", num_chunks)
-	log.Printf("%v\n", chunk_keys)
 	// write db entry
 	pr = postResponse{
 		Key:       key.String(),
@@ -148,7 +146,6 @@ type caskresponse struct {
 }
 
 func sendChunkToCask(chunk []byte, s *Site) (Key, error) {
-	log.Printf("sendChunkToCask()\n")
 	resp, err := postFile(bytes.NewBuffer(chunk), s.CaskPostURL())
 	if err != nil {
 		log.Println("Couldn't send chunk to cask")
@@ -220,7 +217,6 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 			}
 			w.Write(data)
 			if f, ok := w.(http.Flusher); ok {
-				log.Println("*flush*")
 				f.Flush()
 			} else {
 				log.Println("not a flusher")
@@ -232,7 +228,6 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 }
 
 func getChunkFromCask(key, cask_base string) ([]byte, error) {
-	log.Printf("getChunkFromCask(%s)\n", key)
 	url := cask_base + key + "/"
 	c := http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
