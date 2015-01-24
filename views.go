@@ -202,6 +202,19 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 			http.Error(w, "invalid key", 400)
 			return
 		}
+
+		// If-None-Match is *always* safe to handle since the key
+		// is the hash of the content. It just has to be the same
+		// as the hash in the path.
+		if inm := r.Header.Get("If-None-Match"); inm != "" {
+			if inm == "\""+key+"\"" {
+				h := w.Header()
+				delete(h, "Content-Type")
+				delete(h, "Content-Length")
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		}
 		metadata, found := s.Get(k)
 		if found != true {
 			http.Error(w, "file not found", 404)
@@ -209,6 +222,7 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 
 		log.Println(metadata.MimeType)
 		w.Header().Set("Content-Type", metadata.MimeType)
+		w.Header().Set("ETag", "\""+key+"\"")
 		for _, key := range metadata.Chunks {
 			data, err := getChunkFromCask(key, s.CaskRetrieveBase())
 			if err != nil {
