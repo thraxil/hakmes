@@ -36,3 +36,38 @@ A quick example with curl
       hello
 
 
+## Config
+
+Configuration is via environment variables. The following are used:
+
+### HAKMES_PORT
+
+Port to listen on.
+
+### HAKMES_CASK_BASE
+
+Base URL of a Cask node to use for the backend. Future versions might
+support comma separated lists of Cask nodes to allow Hakmes to
+round-robin or failover between them. In the meantime, for HA, it's
+recommended that you stick an HAProxy instance between Hakmes and Cask
+and point this setting there.
+
+### HAKMES_CHUNK_SIZE
+
+Maximum size of chunks (in bytes). If a file is smaller than this, it will be
+uploaded to Cask as one piece. If it's larger, this is the size of
+chunks it's broken into. Cask works more smoothly with relatively
+small chunks, but the more chunks you have, the more overhead is
+involved. You will want to benchmark and try some different values out
+to figure out what works best for your Cask cluster and the typical
+file sizes that you are working with. A good starting point is
+probably in the 4-16MB range.
+
+### HAKMES_DB_PATH
+
+Path to a boltdb file. If the file doesn't exist, Hakmes will create a new
+one when it starts.
+
+### HAKMES_SSL_CERT, HAKMES_SSL_KEY
+
+If you configure these, Hakmes will use SSL/TLS.
