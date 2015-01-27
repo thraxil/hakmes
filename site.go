@@ -9,33 +9,31 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-type Site struct {
+type site struct {
 	CaskBase  string
 	ChunkSize int64
 	db        *bolt.DB
 }
 
-func NewSite(cask_base string, chunk_size int64, db *bolt.DB) *Site {
-	return &Site{CaskBase: cask_base, ChunkSize: chunk_size, db: db}
+func newSite(caskBase string, chunkSize int64, db *bolt.DB) *site {
+	return &site{CaskBase: caskBase, ChunkSize: chunkSize, db: db}
 }
 
-func (s Site) CaskPostURL() string {
+func (s site) CaskPostURL() string {
 	if strings.HasSuffix(s.CaskBase, "/") {
 		return s.CaskBase
-	} else {
-		return s.CaskBase + "/"
 	}
+	return s.CaskBase + "/"
 }
 
-func (s Site) CaskRetrieveBase() string {
+func (s site) CaskRetrieveBase() string {
 	if strings.HasSuffix(s.CaskBase, "/") {
 		return s.CaskBase + "file/"
-	} else {
-		return s.CaskBase + "/file/"
 	}
+	return s.CaskBase + "/file/"
 }
 
-func (s Site) EnsureBuckets() {
+func (s site) EnsureBuckets() {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("Files"))
 		if err != nil {
@@ -48,7 +46,7 @@ func (s Site) EnsureBuckets() {
 	}
 }
 
-func (s Site) Add(p postResponse) {
+func (s site) Add(p postResponse) {
 	data, err := json.Marshal(p)
 	if err != nil {
 		log.Println("error marshaling to json")
@@ -66,7 +64,7 @@ func (s Site) Add(p postResponse) {
 	log.Println("wrote it...")
 }
 
-func (s Site) Get(k *Key) (postResponse, bool) {
+func (s site) Get(k *key) (postResponse, bool) {
 	var v []byte
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Files"))

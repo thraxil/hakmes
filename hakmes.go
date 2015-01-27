@@ -10,17 +10,17 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-func makeHandler(fn func(http.ResponseWriter, *http.Request, *Site), s *Site) http.HandlerFunc {
+func makeHandler(fn func(http.ResponseWriter, *http.Request, *site), s *site) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%s %s\n", r.Method, r.URL.String())
 		fn(w, r, s)
 	}
 }
 
-type Config struct {
-	Port     int
-	SSL_Cert string `envconfig:"SSL_CERT"`
-	SSL_Key  string `envconfig:"SSL_Key"`
+type config struct {
+	Port    int
+	SSLCert string `envconfig:"SSL_CERT"`
+	SSLKey  string `envconfig:"SSL_Key"`
 
 	CaskBase  string `envconfig:"CASK_BASE"`
 	ChunkSize int64  `envconfig:"CHUNK_SIZE"`
@@ -29,7 +29,7 @@ type Config struct {
 }
 
 func main() {
-	var c Config
+	var c config
 	err := envconfig.Process("hakmes", &c)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -41,7 +41,7 @@ func main() {
 	}
 	defer db.Close()
 
-	s := NewSite(c.CaskBase, c.ChunkSize, db)
+	s := newSite(c.CaskBase, c.ChunkSize, db)
 	s.EnsureBuckets()
 
 	log.Println("=== Hakmes starting ===============")
@@ -54,8 +54,8 @@ func main() {
 	http.HandleFunc("/file/", makeHandler(retrieveHandler, s))
 	http.HandleFunc("/favicon.ico", faviconHandler)
 
-	if c.SSL_Cert != "" && c.SSL_Key != "" {
-		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", c.Port), c.SSL_Cert, c.SSL_Key, nil))
+	if c.SSLCert != "" && c.SSLKey != "" {
+		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", c.Port), c.SSLCert, c.SSLKey, nil))
 	} else {
 		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", c.Port), nil))
 	}

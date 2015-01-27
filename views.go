@@ -16,7 +16,7 @@ import (
 	"text/template"
 )
 
-func indexHandler(w http.ResponseWriter, r *http.Request, s *Site) {
+func indexHandler(w http.ResponseWriter, r *http.Request, s *site) {
 	if r.Method == "GET" {
 		infoHandler(w, r, s)
 		return
@@ -34,13 +34,13 @@ type infoPage struct {
 	CaskBase  string
 }
 
-func infoHandler(w http.ResponseWriter, r *http.Request, s *Site) {
+func infoHandler(w http.ResponseWriter, r *http.Request, s *site) {
 	p := infoPage{
 		Title:     "Hakmes status",
 		ChunkSize: s.ChunkSize,
 		CaskBase:  s.CaskBase,
 	}
-	t, _ := template.New("status").Parse(status_template)
+	t, _ := template.New("status").Parse(statusTemplate)
 	t.Execute(w, p)
 }
 
@@ -52,7 +52,7 @@ type postResponse struct {
 	Chunks    []string `json:"chunks"`
 }
 
-func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
+func postFileHandler(w http.ResponseWriter, r *http.Request, s *site) {
 	// get file from request
 	f, fh, err := r.FormFile("file")
 	if err != nil {
@@ -80,7 +80,7 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 		http.Error(w, "couldn't calculate hash", 500)
 		return
 	}
-	key, err := KeyFromString("sha1:" + fmt.Sprintf("%x", h.Sum(nil)))
+	key, err := keyFromString("sha1:" + fmt.Sprintf("%x", h.Sum(nil)))
 	if err != nil {
 		log.Println(err)
 		http.Error(w, "bad hash", 500)
@@ -100,34 +100,34 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 		return
 	}
 	// split into chunks
-	num_chunks := 0
-	chunk_keys := make([]string, 0)
+	numChunks := 0
+	var chunkKeys []string
 	buf := make([]byte, s.ChunkSize)
 	for {
 		// upload each chunk to cask
 		nr, er := f.Read(buf)
 		if nr > 0 {
-			num_chunks++
+			numChunks++
 			key, err := sendChunkToCask(buf[0:nr], s)
 			if err != nil {
 				log.Println(err.Error())
 				http.Error(w, "failed to write to cask", 500)
 				return
 			}
-			chunk_keys = append(chunk_keys, key.String())
+			chunkKeys = append(chunkKeys, key.String())
 		}
 		if er == io.EOF {
 			break
 		}
 	}
-	log.Printf("%d chunks\n", num_chunks)
+	log.Printf("%d chunks\n", numChunks)
 	// write db entry
 	pr = postResponse{
 		Key:       key.String(),
 		Size:      size,
 		Extension: extension,
 		MimeType:  mimetype,
-		Chunks:    chunk_keys,
+		Chunks:    chunkKeys,
 	}
 	s.Add(pr)
 	// return hash and info
@@ -145,59 +145,59 @@ type caskresponse struct {
 	Success bool   `json:"success"`
 }
 
-func sendChunkToCask(chunk []byte, s *Site) (Key, error) {
+func sendChunkToCask(chunk []byte, s *site) (key, error) {
 	resp, err := postFile(bytes.NewBuffer(chunk), s.CaskPostURL())
 	if err != nil {
 		log.Println("Couldn't send chunk to cask")
 		log.Println(err.Error())
-		return Key{}, err
+		return key{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		log.Println("didn't get a 200 from Cask")
-		return Key{}, errors.New("cask failed")
+		return key{}, errors.New("cask failed")
 	}
 	b, _ := ioutil.ReadAll(resp.Body)
 	var cr caskresponse
 	err = json.Unmarshal(b, &cr)
 	if err != nil {
-		return Key{}, err
+		return key{}, err
 	}
 	if !cr.Success {
-		return Key{}, errors.New("cask could not store to enough nodes")
+		return key{}, errors.New("cask could not store to enough nodes")
 	}
-	k, err := KeyFromString(cr.Key)
+	k, err := keyFromString(cr.Key)
 	return *k, nil
 }
 
-func postFile(f io.Reader, target_url string) (*http.Response, error) {
-	body_buf := bytes.NewBufferString("")
-	body_writer := multipart.NewWriter(body_buf)
-	file_writer, err := body_writer.CreateFormFile("file", "file.dat")
+func postFile(f io.Reader, targetURL string) (*http.Response, error) {
+	bodyBuf := bytes.NewBufferString("")
+	bodyWriter := multipart.NewWriter(bodyBuf)
+	fileWriter, err := bodyWriter.CreateFormFile("file", "file.dat")
 	if err != nil {
 		panic(err.Error())
 	}
-	io.Copy(file_writer, f)
+	io.Copy(fileWriter, f)
 	// .Close() finishes setting it up
 	// do not defer this or it will make and empty POST request
-	body_writer.Close()
-	content_type := body_writer.FormDataContentType()
+	bodyWriter.Close()
+	contentType := bodyWriter.FormDataContentType()
 	c := http.Client{}
-	req, err := http.NewRequest("POST", target_url, body_buf)
+	req, err := http.NewRequest("POST", targetURL, bodyBuf)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", content_type)
+	req.Header.Set("Content-Type", contentType)
 	//	req.Header.Set("X-Cask-Cluster-Secret", secret)
 
 	return c.Do(req)
 }
 
-func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
+func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
 	parts := strings.Split(r.URL.String(), "/")
 	if len(parts) == 4 {
 		key := parts[2]
-		k, err := KeyFromString(key)
+		k, err := keyFromString(key)
 		if err != nil {
 			http.Error(w, "invalid key", 400)
 			return
@@ -241,8 +241,8 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *Site) {
 	}
 }
 
-func getChunkFromCask(key, cask_base string) ([]byte, error) {
-	url := cask_base + key + "/"
+func getChunkFromCask(key, caskBase string) ([]byte, error) {
+	url := caskBase + key + "/"
 	c := http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -265,7 +265,7 @@ func faviconHandler(w http.ResponseWriter, r *http.Request) {
 	// just ignore this crap
 }
 
-var status_template = `
+var statusTemplate = `
 <html>
 <head>
 <title>{{.Title}}</title>

@@ -5,12 +5,12 @@ import (
 	"strings"
 )
 
-type Key struct {
+type key struct {
 	Algorithm string
 	Value     []byte
 }
 
-func KeyFromString(str string) (*Key, error) {
+func keyFromString(str string) (*key, error) {
 	parts := strings.Split(str, ":")
 	algorithm := parts[0]
 	if algorithm != "sha1" {
@@ -20,13 +20,13 @@ func KeyFromString(str string) (*Key, error) {
 	if len(str) != 40 {
 		return nil, errors.New("invalid key")
 	}
-	return &Key{algorithm, []byte(str)}, nil
+	return &key{algorithm, []byte(str)}, nil
 }
 
-func (k Key) String() string {
+func (k key) String() string {
 	return k.Algorithm + ":" + string(k.Value)
 }
 
-func (k Key) Valid() bool {
+func (k key) Valid() bool {
 	return k.Algorithm == "sha1" && len(k.String()) == 40
 }
