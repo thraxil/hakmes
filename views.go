@@ -241,6 +241,48 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
 	}
 }
 
+func fileInfoHandler(w http.ResponseWriter, r *http.Request, s *site) {
+	parts := strings.Split(r.URL.String(), "/")
+	if len(parts) == 4 {
+		key := parts[2]
+		k, err := keyFromString(key)
+		if err != nil {
+			http.Error(w, "invalid key", 400)
+			return
+		}
+
+		// If-None-Match is *always* safe to handle since the key
+		// is the hash of the content. It just has to be the same
+		// as the hash in the path.
+		if inm := r.Header.Get("If-None-Match"); inm != "" {
+			if inm == "\""+key+"\"" {
+				h := w.Header()
+				delete(h, "Content-Type")
+				delete(h, "Content-Length")
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		}
+		metadata, found := s.Get(k)
+		if found != true {
+			http.Error(w, "file not found", 404)
+		}
+
+		log.Println(metadata.MimeType)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("ETag", "\""+key+"\"")
+
+		b, err := json.Marshal(metadata)
+		if err != nil {
+			http.Error(w, "json error", 500)
+			return
+		}
+		w.Write(b)
+	} else {
+		http.Error(w, "bad request", 400)
+	}
+}
+
 func getChunkFromCask(key, caskBase string) ([]byte, error) {
 	url := caskBase + key + "/"
 	c := http.Client{}
