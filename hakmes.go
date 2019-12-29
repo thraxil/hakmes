@@ -9,6 +9,8 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func makeHandler(fn func(http.ResponseWriter, *http.Request, *site), s *site) http.HandlerFunc {
@@ -51,10 +53,11 @@ func main() {
 	log.Printf("chunk size: %d bytes\n", c.ChunkSize)
 	log.Println("===================================")
 
-	http.HandleFunc("/", makeHandler(indexHandler, s))
-	http.HandleFunc("/file/", makeHandler(retrieveHandler, s))
-	http.HandleFunc("/info/", makeHandler(fileInfoHandler, s))
+	http.HandleFunc("/", prometheus.InstrumentHandler("root", makeHandler(indexHandler, s)))
+	http.HandleFunc("/file/", prometheus.InstrumentHandler("file", makeHandler(retrieveHandler, s)))
+	http.HandleFunc("/info/", prometheus.InstrumentHandler("info", makeHandler(fileInfoHandler, s)))
 	http.HandleFunc("/favicon.ico", faviconHandler)
+	http.Handle("/metrics", promhttp.Handler())
 
 	if c.SSLCert != "" && c.SSLKey != "" {
 		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", c.Port), c.SSLCert, c.SSLKey, nil))
