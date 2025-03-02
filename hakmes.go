@@ -1,4 +1,4 @@
-package main
+package main // import "github.com/thraxil/hakmes"
 
 import (
 	_ "expvar"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -53,9 +52,9 @@ func main() {
 	log.Printf("chunk size: %d bytes\n", c.ChunkSize)
 	log.Println("===================================")
 
-	http.HandleFunc("/", prometheus.InstrumentHandler("root", makeHandler(indexHandler, s)))
-	http.HandleFunc("/file/", prometheus.InstrumentHandler("file", makeHandler(retrieveHandler, s)))
-	http.HandleFunc("/info/", prometheus.InstrumentHandler("info", makeHandler(fileInfoHandler, s)))
+	http.HandleFunc("/", makeHandler(indexHandler, s))
+	http.HandleFunc("/file/", makeHandler(retrieveHandler, s))
+	http.HandleFunc("/info/", makeHandler(fileInfoHandler, s))
 	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.Handle("/metrics", promhttp.Handler())
 
