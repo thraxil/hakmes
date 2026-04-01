@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -25,7 +24,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request, s *site) {
 		postFileHandler(w, r, s)
 		return
 	}
-	http.Error(w, "method not supported", 405)
+	http.Error(w, "method not supported", http.StatusMethodNotAllowed)
 }
 
 type infoPage struct {
@@ -41,7 +40,9 @@ func infoHandler(w http.ResponseWriter, r *http.Request, s *site) {
 		CaskBase:  s.CaskBase,
 	}
 	t, _ := template.New("status").Parse(statusTemplate)
-	t.Execute(w, p)
+	if err := t.Execute(w, p); err != nil {
+		log.Printf("error executing template: %v", err)
+	}
 }
 
 type postResponse struct {
@@ -61,7 +62,11 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *site) {
 		http.Error(w, "couldn't read file", 500)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("error closing file: %v", err)
+		}
+	}()
 	log.Println("read in file")
 	// TODO: force lowercase
 	extension := filepath.Ext(fh.Filename)
@@ -86,7 +91,11 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *site) {
 		http.Error(w, "bad hash", 500)
 		return
 	}
-	f.Seek(0, 0)
+	if _, err := f.Seek(0, 0); err != nil {
+		log.Printf("error seeking file: %v", err)
+		http.Error(w, "error seeking file", 500)
+		return
+	}
 	// if we already have an entry for that hash, we're done
 	pr, found := s.Get(key)
 	if found {
@@ -96,7 +105,9 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *site) {
 			http.Error(w, "json error", 500)
 			return
 		}
-		w.Write(b)
+		if _, err := w.Write(b); err != nil {
+			log.Printf("error writing response: %v", err)
+		}
 		return
 	}
 	// split into chunks
@@ -137,7 +148,9 @@ func postFileHandler(w http.ResponseWriter, r *http.Request, s *site) {
 		http.Error(w, "json error", 500)
 		return
 	}
-	w.Write(b)
+	if _, err := w.Write(b); err != nil {
+		log.Printf("error writing response: %v", err)
+	}
 }
 
 type caskresponse struct {
@@ -152,12 +165,16 @@ func sendChunkToCask(chunk []byte, s *site) (key, error) {
 		log.Println(err.Error())
 		return key{}, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("error closing response body: %v", err)
+		}
+	}()
 	if resp.StatusCode != 200 {
 		log.Println("didn't get a 200 from Cask")
 		return key{}, errors.New("cask failed")
 	}
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	var cr caskresponse
 	err = json.Unmarshal(b, &cr)
 	if err != nil {
@@ -167,6 +184,9 @@ func sendChunkToCask(chunk []byte, s *site) (key, error) {
 		return key{}, errors.New("cask could not store to enough nodes")
 	}
 	k, err := keyFromString(cr.Key)
+	if err != nil {
+		return key{}, err
+	}
 	return *k, nil
 }
 
@@ -177,10 +197,14 @@ func postFile(f io.Reader, targetURL string) (*http.Response, error) {
 	if err != nil {
 		panic(err.Error())
 	}
-	io.Copy(fileWriter, f)
+	if _, err := io.Copy(fileWriter, f); err != nil {
+		log.Printf("error copying to fileWriter: %v", err)
+	}
 	// .Close() finishes setting it up
 	// do not defer this or it will make and empty POST request
-	bodyWriter.Close()
+	if err := bodyWriter.Close(); err != nil {
+		log.Printf("error closing bodyWriter: %v", err)
+	}
 	contentType := bodyWriter.FormDataContentType()
 	c := http.Client{}
 	req, err := http.NewRequest("POST", targetURL, bodyBuf)
@@ -216,7 +240,7 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
 			}
 		}
 		metadata, found := s.Get(k)
-		if found != true {
+		if !found {
 			http.Error(w, "file not found", 404)
 		}
 
@@ -229,7 +253,9 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
 				http.Error(w, "cask retrieve failed", 500)
 				return
 			}
-			w.Write(data)
+			if _, err := w.Write(data); err != nil {
+				log.Printf("error writing to response: %v", err)
+			}
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			} else {
@@ -264,7 +290,7 @@ func fileInfoHandler(w http.ResponseWriter, r *http.Request, s *site) {
 			}
 		}
 		metadata, found := s.Get(k)
-		if found != true {
+		if !found {
 			http.Error(w, "file not found", 404)
 		}
 
@@ -277,7 +303,9 @@ func fileInfoHandler(w http.ResponseWriter, r *http.Request, s *site) {
 			http.Error(w, "json error", 500)
 			return
 		}
-		w.Write(b)
+		if _, err := w.Write(b); err != nil {
+			log.Printf("error writing to response: %v", err)
+		}
 	} else {
 		http.Error(w, "bad request", 400)
 	}
@@ -292,14 +320,18 @@ func getChunkFromCask(key, caskBase string) ([]byte, error) {
 	}
 	//	req.Header.Set("X-Cask-Cluster-Secret", secret)
 	resp, err := c.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("error closing response body: %v", err)
+		}
+	}()
 	if resp.Status != "200 OK" {
 		return nil, errors.New("404, probably")
 	}
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	return b, nil
 }
 

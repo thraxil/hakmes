@@ -41,7 +41,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("error closing database: %v", err)
+		}
+	}()
 
 	s := newSite(c.CaskBase, c.ChunkSize, db)
 	s.EnsureBuckets()
