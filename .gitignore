@@ -2,3 +2,4 @@ hakmes
 hakmes.db
 .env
 .direnv
+coverage.out
