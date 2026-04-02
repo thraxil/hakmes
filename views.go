@@ -337,6 +337,7 @@ func getChunkFromCask(key, caskBase string) ([]byte, error) {
 
 func faviconHandler(w http.ResponseWriter, r *http.Request) {
 	// just ignore this crap
+	log.Println("favicon requested")
 }
 
 var statusTemplate = `

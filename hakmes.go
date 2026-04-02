@@ -56,15 +56,21 @@ func main() {
 	log.Printf("chunk size: %d bytes\n", c.ChunkSize)
 	log.Println("===================================")
 
-	http.HandleFunc("/", makeHandler(indexHandler, s))
-	http.HandleFunc("/file/", makeHandler(retrieveHandler, s))
-	http.HandleFunc("/info/", makeHandler(fileInfoHandler, s))
-	http.HandleFunc("/favicon.ico", faviconHandler)
-	http.Handle("/metrics", promhttp.Handler())
+	mux := getMux(s)
 
 	if c.SSLCert != "" && c.SSLKey != "" {
-		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", c.Port), c.SSLCert, c.SSLKey, nil))
+		log.Fatal(http.ListenAndServeTLS(fmt.Sprintf(":%d", c.Port), c.SSLCert, c.SSLKey, mux))
 	} else {
-		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", c.Port), nil))
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", c.Port), mux))
 	}
+}
+
+func getMux(s *site) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", makeHandler(indexHandler, s))
+	mux.HandleFunc("/file/", makeHandler(retrieveHandler, s))
+	mux.HandleFunc("/info/", makeHandler(fileInfoHandler, s))
+	mux.HandleFunc("/favicon.ico", faviconHandler)
+	mux.Handle("/metrics", promhttp.Handler())
+	return mux
 }
