@@ -399,8 +399,12 @@ func TestPostFileHandlerCaskFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		db.Close()
-		os.Remove(tmpDB)
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+		if err := os.Remove(tmpDB); err != nil {
+			t.Errorf("error removing tmp db: %v", err)
+		}
 	}()
 
 	s := newSite(ts.URL, 1024, db)
@@ -410,8 +414,12 @@ func TestPostFileHandlerCaskFail(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("file", "test.txt")
-	io.WriteString(part, "hello world")
-	writer.Close()
+	if _, err := io.WriteString(part, "hello world"); err != nil {
+		t.Errorf("error writing string: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Errorf("error closing writer: %v", err)
+	}
 
 	req, _ := http.NewRequest("POST", "/", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -432,7 +440,9 @@ func TestPostFileHandlerCaskSuccessFalse(t *testing.T) {
 			Success: false,
 		}
 		b, _ := json.Marshal(cr)
-		w.Write(b)
+		if _, err := w.Write(b); err != nil {
+			t.Errorf("error writing response: %v", err)
+		}
 	}))
 	defer ts.Close()
 
@@ -443,8 +453,12 @@ func TestPostFileHandlerCaskSuccessFalse(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		db.Close()
-		os.Remove(tmpDB)
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+		if err := os.Remove(tmpDB); err != nil {
+			t.Errorf("error removing tmp db: %v", err)
+		}
 	}()
 
 	s := newSite(ts.URL, 1024, db)
@@ -454,8 +468,12 @@ func TestPostFileHandlerCaskSuccessFalse(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("file", "test.txt")
-	io.WriteString(part, "hello world")
-	writer.Close()
+	if _, err := io.WriteString(part, "hello world"); err != nil {
+		t.Errorf("error writing string: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Errorf("error closing writer: %v", err)
+	}
 
 	req, _ := http.NewRequest("POST", "/", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -471,7 +489,9 @@ func TestPostFileHandlerCaskSuccessFalse(t *testing.T) {
 func TestPostFileHandlerCaskInvalidJSON(t *testing.T) {
 	// Mock Cask server returning invalid JSON
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("not json"))
+		if _, err := w.Write([]byte("not json")); err != nil {
+			t.Errorf("error writing response: %v", err)
+		}
 	}))
 	defer ts.Close()
 
@@ -482,8 +502,12 @@ func TestPostFileHandlerCaskInvalidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		db.Close()
-		os.Remove(tmpDB)
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+		if err := os.Remove(tmpDB); err != nil {
+			t.Errorf("error removing tmp db: %v", err)
+		}
 	}()
 
 	s := newSite(ts.URL, 1024, db)
@@ -493,8 +517,12 @@ func TestPostFileHandlerCaskInvalidJSON(t *testing.T) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("file", "test.txt")
-	io.WriteString(part, "hello world")
-	writer.Close()
+	if _, err := io.WriteString(part, "hello world"); err != nil {
+		t.Errorf("error writing string: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Errorf("error closing writer: %v", err)
+	}
 
 	req, _ := http.NewRequest("POST", "/", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -521,8 +549,12 @@ func TestRetrieveHandlerCaskFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		db.Close()
-		os.Remove(tmpDB)
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+		if err := os.Remove(tmpDB); err != nil {
+			t.Errorf("error removing tmp db: %v", err)
+		}
 	}()
 
 	s := newSite(ts.URL, 1024, db)
