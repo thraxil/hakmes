@@ -7,12 +7,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
+		"strings"
 	"testing"
 
-	"github.com/boltdb/bolt"
-)
+	)
 
 func TestInfoHandler(t *testing.T) {
 	s := &site{
@@ -59,22 +57,7 @@ func TestPostFileHandler(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Temp DB
-	tmpDB := "test_post.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite(ts.URL, 1024, db)
+	s := newSite(ts.URL, 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -123,22 +106,7 @@ func TestRetrieveHandler(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Temp DB
-	tmpDB := "test_retrieve.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite(ts.URL, 1024, db)
+	s := newSite(ts.URL, 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -202,22 +170,7 @@ func TestFaviconHandler(t *testing.T) {
 }
 
 func TestPostFileHandlerExisting(t *testing.T) {
-	// Temp DB
-	tmpDB := "test_post_existing.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite("http://example.com", 1024, db)
+	s := newSite("http://example.com", 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -256,7 +209,7 @@ func TestPostFileHandlerExisting(t *testing.T) {
 	}
 
 	var prRetrieved postResponse
-	err = json.Unmarshal(rr.Body.Bytes(), &prRetrieved)
+	err := json.Unmarshal(rr.Body.Bytes(), &prRetrieved)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,22 +219,7 @@ func TestPostFileHandlerExisting(t *testing.T) {
 }
 
 func TestFileInfoHandler(t *testing.T) {
-	// Temp DB
-	tmpDB := "test_file_info.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite("http://example.com", 1024, db)
+	s := newSite("http://example.com", 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -368,22 +306,7 @@ func TestPostFileHandlerCaskFail(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Temp DB
-	tmpDB := "test_post_cask_fail.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite(ts.URL, 1024, db)
+	s := newSite(ts.URL, 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -423,22 +346,7 @@ func TestPostFileHandlerCaskSuccessFalse(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Temp DB
-	tmpDB := "test_post_cask_success_false.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite(ts.URL, 1024, db)
+	s := newSite(ts.URL, 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -473,22 +381,7 @@ func TestPostFileHandlerCaskInvalidJSON(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Temp DB
-	tmpDB := "test_post_cask_invalid_json.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite(ts.URL, 1024, db)
+	s := newSite(ts.URL, 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -525,22 +418,7 @@ func TestRetrieveHandlerRange(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Temp DB
-	tmpDB := "test_retrieve_range.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite(ts.URL, 5, db)
+	s := newSite(ts.URL, 5, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 
@@ -583,22 +461,7 @@ func TestRetrieveHandlerCaskFail(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Temp DB
-	tmpDB := "test_retrieve_fail.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite(ts.URL, 1024, db)
+	s := newSite(ts.URL, 1024, NewMemoryStore())
 	s.EnsureBuckets()
 	mux := getMux(s)
 

@@ -47,7 +47,7 @@ func main() {
 		}
 	}()
 
-	s := newSite(c.CaskBase, c.ChunkSize, db)
+	s := newSite(c.CaskBase, c.ChunkSize, NewBoltStore(db))
 	s.EnsureBuckets()
 
 	log.Println("=== Hakmes starting ===============")

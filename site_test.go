@@ -1,10 +1,7 @@
 package main
 
 import (
-	"os"
 	"testing"
-
-	"github.com/boltdb/bolt"
 )
 
 func TestNewSite(t *testing.T) {
@@ -52,21 +49,7 @@ func TestCaskRetrieveBase(t *testing.T) {
 }
 
 func TestSiteDBMethods(t *testing.T) {
-	tmpDB := "test.db"
-	db, err := bolt.Open(tmpDB, 0600, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			t.Errorf("error closing db: %v", err)
-		}
-		if err := os.Remove(tmpDB); err != nil {
-			t.Errorf("error removing tmp db: %v", err)
-		}
-	}()
-
-	s := newSite("http://example.com", 1024, db)
+	s := newSite("http://example.com", 1024, NewMemoryStore())
 	s.EnsureBuckets()
 
 	pr := postResponse{
