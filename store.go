@@ -61,6 +61,9 @@ func (s *BoltStore) Get(k *key) (postResponse, bool) {
 	var v []byte
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Files"))
+		if b == nil {
+			return nil
+		}
 		v = b.Get([]byte(k.String()))
 		return nil
 	})
@@ -85,6 +88,9 @@ func (s *BoltStore) Get(k *key) (postResponse, bool) {
 func (s *BoltStore) All(fn func(postResponse)) error {
 	return s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Files"))
+		if b == nil {
+			return nil
+		}
 		return b.ForEach(func(k, v []byte) error {
 			var pr postResponse
 			err := json.Unmarshal(v, &pr)

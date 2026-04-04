@@ -41,9 +41,13 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	db, err := bolt.Open(c.DBPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
+	opts := &bolt.Options{Timeout: 1 * time.Second}
+	if c.Serialize {
+		opts.ReadOnly = true
+	}
+	db, err := bolt.Open(c.DBPath, 0600, opts)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("error opening bolt database at %s: %v", c.DBPath, err)
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -52,7 +56,6 @@ func main() {
 	}()
 
 	s := newSite(c.CaskBase, c.ChunkSize, NewBoltStore(db))
-	s.EnsureBuckets()
 
 	if c.Serialize {
 		err := s.All(func(p postResponse) {
@@ -70,6 +73,7 @@ func main() {
 	}
 
 	if c.Ingest {
+		s.EnsureBuckets()
 		err := s.Ingest(os.Stdin)
 		if err != nil {
 			log.Fatal(err)
@@ -83,6 +87,7 @@ func main() {
 	log.Printf("chunk size: %d bytes\n", c.ChunkSize)
 	log.Println("===================================")
 
+	s.EnsureBuckets()
 	mux := getMux(s)
 
 	if c.SSLCert != "" && c.SSLKey != "" {
