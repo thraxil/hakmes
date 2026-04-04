@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/boltdb/bolt"
@@ -510,6 +511,68 @@ func TestPostFileHandlerCaskInvalidJSON(t *testing.T) {
 
 	if status := rr.Code; status != http.StatusInternalServerError {
 		t.Errorf("Expected 500 for cask invalid JSON, got %v", status)
+	}
+}
+
+func TestRetrieveHandlerRange(t *testing.T) {
+	// Mock Cask server for GET
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "chunk1") {
+			_, _ = w.Write([]byte("01234"))
+		} else if strings.Contains(r.URL.Path, "chunk2") {
+			_, _ = w.Write([]byte("56789"))
+		}
+	}))
+	defer ts.Close()
+
+	// Temp DB
+	tmpDB := "test_retrieve_range.db"
+	db, err := bolt.Open(tmpDB, 0600, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("error closing db: %v", err)
+		}
+		if err := os.Remove(tmpDB); err != nil {
+			t.Errorf("error removing tmp db: %v", err)
+		}
+	}()
+
+	s := newSite(ts.URL, 5, db)
+	s.EnsureBuckets()
+	mux := getMux(s)
+
+	key := "sha1:1234567890123456789012345678901234567890"
+	pr := postResponse{
+		Key:       key,
+		Extension: ".txt",
+		MimeType:  "text/plain",
+		Size:      10,
+		Chunks:    []string{"sha1:chunk1", "sha1:chunk2"},
+	}
+	s.Add(pr)
+
+	// Test Range: bytes=2-6 (should get "23456")
+	req, _ := http.NewRequest("GET", "/file/"+key+"/", nil)
+	req.Header.Set("Range", "bytes=2-6")
+
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusPartialContent {
+		t.Errorf("Expected 206 Partial Content, got %v", status)
+	}
+
+	if rr.Body.String() != "23456" {
+		t.Errorf("Expected '23456', got %q", rr.Body.String())
+	}
+
+	contentRange := rr.Header().Get("Content-Range")
+	expectedContentRange := "bytes 2-6/10"
+	if contentRange != expectedContentRange {
+		t.Errorf("Expected Content-Range %q, got %q", expectedContentRange, contentRange)
 	}
 }
 

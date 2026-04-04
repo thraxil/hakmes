@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"text/template"
+	"time"
 )
 
 type infoPage struct {
@@ -213,42 +214,23 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
 			return
 		}
 
-		// If-None-Match is *always* safe to handle since the key
-		// is the hash of the content. It just has to be the same
-		// as the hash in the path.
-		if inm := r.Header.Get("If-None-Match"); inm != "" {
-			if inm == "\""+key+"\"" {
-				h := w.Header()
-				delete(h, "Content-Type")
-				delete(h, "Content-Length")
-				w.WriteHeader(http.StatusNotModified)
-				return
-			}
-		}
 		metadata, found := s.Get(k)
 		if !found {
 			http.Error(w, "file not found", 404)
 			return
 		}
 
-		log.Println(metadata.MimeType)
+		reader := newHakmesReader(s, metadata)
+		if err := reader.Verify(); err != nil {
+			http.Error(w, "cask retrieve failed", 500)
+			return
+		}
+
 		w.Header().Set("Content-Type", metadata.MimeType)
 		w.Header().Set("ETag", "\""+key+"\"")
-		for _, key := range metadata.Chunks {
-			data, err := getChunkFromCask(key, s.CaskRetrieveBase())
-			if err != nil {
-				http.Error(w, "cask retrieve failed", 500)
-				return
-			}
-			if _, err := w.Write(data); err != nil {
-				log.Printf("error writing to response: %v", err)
-			}
-			if f, ok := w.(http.Flusher); ok {
-				f.Flush()
-			} else {
-				log.Println("not a flusher")
-			}
-		}
+
+		// http.ServeContent handles Range, If-Range, If-None-Match, etc.
+		http.ServeContent(w, r, metadata.Key, time.Time{}, reader)
 	} else {
 		http.Error(w, "bad request", 400)
 	}
