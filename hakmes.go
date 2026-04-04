@@ -2,6 +2,7 @@ package main // import "github.com/thraxil/hakmes"
 
 import (
 	_ "expvar"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,7 +28,8 @@ type config struct {
 	CaskBase  string `envconfig:"CASK_BASE"`
 	ChunkSize int64  `envconfig:"CHUNK_SIZE"`
 
-	DBPath string `envconfig:"DB_PATH"`
+	DBPath    string `envconfig:"DB_PATH"`
+	Serialize bool   `envconfig:"SERIALIZE"`
 }
 
 func main() {
@@ -49,6 +51,21 @@ func main() {
 
 	s := newSite(c.CaskBase, c.ChunkSize, NewBoltStore(db))
 	s.EnsureBuckets()
+
+	if c.Serialize {
+		err := s.All(func(p postResponse) {
+			b, err := json.Marshal(p)
+			if err != nil {
+				log.Printf("error marshaling: %v", err)
+				return
+			}
+			fmt.Println(string(b))
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 
 	log.Println("=== Hakmes starting ===============")
 	log.Printf("running on http://localhost:%d\n", c.Port)

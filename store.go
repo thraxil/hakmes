@@ -14,6 +14,7 @@ type MetadataStore interface {
 	EnsureBuckets()
 	Add(p postResponse)
 	Get(k *key) (postResponse, bool)
+	All(fn func(postResponse)) error
 }
 
 // BoltStore is the BoltDB implementation of MetadataStore.
@@ -81,6 +82,21 @@ func (s *BoltStore) Get(k *key) (postResponse, bool) {
 	return pr, true
 }
 
+func (s *BoltStore) All(fn func(postResponse)) error {
+	return s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Files"))
+		return b.ForEach(func(k, v []byte) error {
+			var pr postResponse
+			err := json.Unmarshal(v, &pr)
+			if err != nil {
+				return err
+			}
+			fn(pr)
+			return nil
+		})
+	})
+}
+
 // MemoryStore is an in-memory implementation of MetadataStore for testing.
 type MemoryStore struct {
 	data map[string]postResponse
@@ -109,4 +125,13 @@ func (m *MemoryStore) Get(k *key) (postResponse, bool) {
 	defer m.mu.RUnlock()
 	p, ok := m.data[k.String()]
 	return p, ok
+}
+
+func (m *MemoryStore) All(fn func(postResponse)) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, p := range m.data {
+		fn(p)
+	}
+	return nil
 }

@@ -68,6 +68,12 @@ probably in the 4-16MB range.
 Path to a boltdb file. If the file doesn't exist, Hakmes will create a new
 one when it starts.
 
+### HAKMES_SERIALIZE
+
+If this is set to `true`, Hakmes will not start a server. Instead, it will
+iterate through the database and print out every entry as a line of JSON
+(JSONL format) to STDOUT. This is useful for backups or migrations.
+
 ### HAKMES_SSL_CERT, HAKMES_SSL_KEY
 
 If you configure these, Hakmes will use SSL/TLS.

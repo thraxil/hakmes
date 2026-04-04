@@ -39,3 +39,7 @@ func (s site) Add(p postResponse) {
 func (s site) Get(k *key) (postResponse, bool) {
 	return s.store.Get(k)
 }
+
+func (s site) All(fn func(postResponse)) error {
+	return s.store.All(fn)
+}
