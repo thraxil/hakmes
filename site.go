@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"encoding/json"
+	"io"
+	"log"
 	"strings"
 )
 
@@ -42,4 +46,27 @@ func (s site) Get(k *key) (postResponse, bool) {
 
 func (s site) All(fn func(postResponse)) error {
 	return s.store.All(fn)
+}
+
+func (s site) Ingest(r io.Reader) error {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		var pr postResponse
+		err := json.Unmarshal(scanner.Bytes(), &pr)
+		if err != nil {
+			log.Printf("error unmarshaling line: %v", err)
+			continue
+		}
+		k, err := keyFromString(pr.Key)
+		if err != nil {
+			log.Printf("invalid key %s: %v", pr.Key, err)
+			continue
+		}
+		_, found := s.Get(k)
+		if found {
+			continue
+		}
+		s.Add(pr)
+	}
+	return scanner.Err()
 }

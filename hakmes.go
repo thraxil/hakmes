@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -30,6 +31,7 @@ type config struct {
 
 	DBPath    string `envconfig:"DB_PATH"`
 	Serialize bool   `envconfig:"SERIALIZE"`
+	Ingest    bool   `envconfig:"INGEST"`
 }
 
 func main() {
@@ -61,6 +63,14 @@ func main() {
 			}
 			fmt.Println(string(b))
 		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
+	if c.Ingest {
+		err := s.Ingest(os.Stdin)
 		if err != nil {
 			log.Fatal(err)
 		}

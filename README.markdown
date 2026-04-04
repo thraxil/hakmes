@@ -74,6 +74,13 @@ If this is set to `true`, Hakmes will not start a server. Instead, it will
 iterate through the database and print out every entry as a line of JSON
 (JSONL format) to STDOUT. This is useful for backups or migrations.
 
+### HAKMES_INGEST
+
+If this is set to `true`, Hakmes will not start a server. Instead, it will
+read lines of JSON (JSONL format) from STDIN and add those entries to the
+database if they are not already present. This is useful for restoring from
+a backup or migrating between database backends.
+
 ### HAKMES_SSL_CERT, HAKMES_SSL_KEY
 
 If you configure these, Hakmes will use SSL/TLS.
