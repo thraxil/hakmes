@@ -18,17 +18,14 @@ func TestInfoHandler(t *testing.T) {
 		CaskBase:  "http://cask.example.com",
 		ChunkSize: 1024,
 	}
-	req, err := http.NewRequest("GET", "/info/", nil)
+	mux := getMux(s)
+	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		infoHandler(w, r, s)
-	})
-
-	handler.ServeHTTP(rr, req)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -45,35 +42,6 @@ func TestInfoHandler(t *testing.T) {
 
 func contains(s, substr string) bool {
 	return (len(s) >= len(substr)) && (s[0:len(substr)] == substr || (len(s) > 0 && contains(s[1:], substr)))
-}
-
-func TestIndexHandler(t *testing.T) {
-	s := &site{
-		CaskBase:  "http://cask.example.com",
-		ChunkSize: 1024,
-	}
-
-	// Test GET (should call infoHandler)
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	indexHandler(rr, req, s)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("GET / returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
-
-	// Test unsupported method
-	req, err = http.NewRequest("PUT", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr = httptest.NewRecorder()
-	indexHandler(rr, req, s)
-	if status := rr.Code; status != http.StatusMethodNotAllowed {
-		t.Errorf("PUT / returned wrong status code: got %v want %v", status, http.StatusMethodNotAllowed)
-	}
 }
 
 func TestPostFileHandler(t *testing.T) {
@@ -107,6 +75,7 @@ func TestPostFileHandler(t *testing.T) {
 
 	s := newSite(ts.URL, 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	// Create multi-part form
 	body := &bytes.Buffer{}
@@ -126,7 +95,7 @@ func TestPostFileHandler(t *testing.T) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	rr := httptest.NewRecorder()
-	postFileHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -170,6 +139,7 @@ func TestRetrieveHandler(t *testing.T) {
 
 	s := newSite(ts.URL, 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	pr := postResponse{
 		Key:       "sha1:1234567890123456789012345678901234567890",
@@ -186,11 +156,11 @@ func TestRetrieveHandler(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	retrieveHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+		t.Errorf("handler returned wrong status code: got %v want %v. body: %s",
+			status, http.StatusOK, rr.Body.String())
 	}
 
 	if rr.Body.String() != "hello world" {
@@ -200,7 +170,7 @@ func TestRetrieveHandler(t *testing.T) {
 	// Test Not Found
 	req, _ = http.NewRequest("GET", "/file/sha1:0000000000000000000000000000000000000000/", nil)
 	rr = httptest.NewRecorder()
-	retrieveHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusNotFound {
 		t.Errorf("Expected 404 for missing file, got %v", status)
 	}
@@ -209,19 +179,21 @@ func TestRetrieveHandler(t *testing.T) {
 	req, _ = http.NewRequest("GET", "/file/sha1:1234567890123456789012345678901234567890/", nil)
 	req.Header.Set("If-None-Match", "\"sha1:1234567890123456789012345678901234567890\"")
 	rr = httptest.NewRecorder()
-	retrieveHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusNotModified {
 		t.Errorf("Expected 304 for If-None-Match, got %v", status)
 	}
 }
 
 func TestFaviconHandler(t *testing.T) {
+	s := &site{}
+	mux := getMux(s)
 	req, err := http.NewRequest("GET", "/favicon.ico", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	faviconHandler(rr, req)
+	mux.ServeHTTP(rr, req)
 	// it just ignores it, so 200 is expected default if nothing written
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected 200, got %v", rr.Code)
@@ -246,6 +218,7 @@ func TestPostFileHandlerExisting(t *testing.T) {
 
 	s := newSite("http://example.com", 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	// Pre-add an entry
 	// SHA1 of "hello world" is 2aae6c35c94fcfb415dbe95f408b9ce91ee846ed
@@ -274,7 +247,7 @@ func TestPostFileHandlerExisting(t *testing.T) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	rr := httptest.NewRecorder()
-	postFileHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -309,6 +282,7 @@ func TestFileInfoHandler(t *testing.T) {
 
 	s := newSite("http://example.com", 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	pr := postResponse{
 		Key:       "sha1:1234567890123456789012345678901234567890",
@@ -325,7 +299,7 @@ func TestFileInfoHandler(t *testing.T) {
 	}
 
 	rr := httptest.NewRecorder()
-	fileInfoHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -344,7 +318,7 @@ func TestFileInfoHandler(t *testing.T) {
 	// Test Not Found
 	req, _ = http.NewRequest("GET", "/info/sha1:0000000000000000000000000000000000000000/", nil)
 	rr = httptest.NewRecorder()
-	fileInfoHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusNotFound {
 		t.Errorf("Expected 404 for missing file info, got %v", status)
 	}
@@ -352,7 +326,7 @@ func TestFileInfoHandler(t *testing.T) {
 	// Test Invalid Key
 	req, _ = http.NewRequest("GET", "/info/invalid/", nil)
 	rr = httptest.NewRecorder()
-	fileInfoHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusBadRequest {
 		t.Errorf("Expected 400 for invalid key, got %v", status)
 	}
@@ -360,16 +334,16 @@ func TestFileInfoHandler(t *testing.T) {
 	// Test Bad Request
 	req, _ = http.NewRequest("GET", "/bad/", nil)
 	rr = httptest.NewRecorder()
-	fileInfoHandler(rr, req, s)
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("Expected 400 for bad request, got %v", status)
+	mux.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusNotFound {
+		t.Errorf("Expected 404 for bad request (no route), got %v", status)
 	}
 
 	// Test If-None-Match
 	req, _ = http.NewRequest("GET", "/info/sha1:1234567890123456789012345678901234567890/", nil)
 	req.Header.Set("If-None-Match", "\"sha1:1234567890123456789012345678901234567890\"")
 	rr = httptest.NewRecorder()
-	fileInfoHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusNotModified {
 		t.Errorf("Expected 304 for If-None-Match, got %v", status)
 	}
@@ -377,9 +351,10 @@ func TestFileInfoHandler(t *testing.T) {
 
 func TestPostFileHandlerNoFile(t *testing.T) {
 	s := &site{}
+	mux := getMux(s)
 	req, _ := http.NewRequest("POST", "/", nil)
 	rr := httptest.NewRecorder()
-	postFileHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("Expected 500 for missing file, got %v", rr.Code)
 	}
@@ -409,6 +384,7 @@ func TestPostFileHandlerCaskFail(t *testing.T) {
 
 	s := newSite(ts.URL, 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	// Create multi-part form
 	body := &bytes.Buffer{}
@@ -425,7 +401,7 @@ func TestPostFileHandlerCaskFail(t *testing.T) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	rr := httptest.NewRecorder()
-	postFileHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
 		t.Errorf("Expected 500 for cask fail, got %v", status)
@@ -463,6 +439,7 @@ func TestPostFileHandlerCaskSuccessFalse(t *testing.T) {
 
 	s := newSite(ts.URL, 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	// Create multi-part form
 	body := &bytes.Buffer{}
@@ -479,7 +456,7 @@ func TestPostFileHandlerCaskSuccessFalse(t *testing.T) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	rr := httptest.NewRecorder()
-	postFileHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
 		t.Errorf("Expected 500 for cask success: false, got %v", status)
@@ -512,6 +489,7 @@ func TestPostFileHandlerCaskInvalidJSON(t *testing.T) {
 
 	s := newSite(ts.URL, 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	// Create multi-part form
 	body := &bytes.Buffer{}
@@ -528,7 +506,7 @@ func TestPostFileHandlerCaskInvalidJSON(t *testing.T) {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	rr := httptest.NewRecorder()
-	postFileHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
 		t.Errorf("Expected 500 for cask invalid JSON, got %v", status)
@@ -559,6 +537,7 @@ func TestRetrieveHandlerCaskFail(t *testing.T) {
 
 	s := newSite(ts.URL, 1024, db)
 	s.EnsureBuckets()
+	mux := getMux(s)
 
 	pr := postResponse{
 		Key:       "sha1:1234567890123456789012345678901234567890",
@@ -571,7 +550,7 @@ func TestRetrieveHandlerCaskFail(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", "/file/sha1:1234567890123456789012345678901234567890/", nil)
 	rr := httptest.NewRecorder()
-	retrieveHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusInternalServerError {
 		t.Errorf("Expected 500 for cask fail, got %v", status)
@@ -580,9 +559,10 @@ func TestRetrieveHandlerCaskFail(t *testing.T) {
 
 func TestRetrieveHandlerInvalidKey(t *testing.T) {
 	s := &site{}
+	mux := getMux(s)
 	req, _ := http.NewRequest("GET", "/file/invalid/", nil)
 	rr := httptest.NewRecorder()
-	retrieveHandler(rr, req, s)
+	mux.ServeHTTP(rr, req)
 	if status := rr.Code; status != http.StatusBadRequest {
 		t.Errorf("Expected 400 for invalid key, got %v", status)
 	}
@@ -590,10 +570,11 @@ func TestRetrieveHandlerInvalidKey(t *testing.T) {
 
 func TestRetrieveHandlerBadRequest(t *testing.T) {
 	s := &site{}
+	mux := getMux(s)
 	req, _ := http.NewRequest("GET", "/invalid/", nil)
 	rr := httptest.NewRecorder()
-	retrieveHandler(rr, req, s)
-	if status := rr.Code; status != http.StatusBadRequest {
-		t.Errorf("Expected 400 for bad request, got %v", status)
+	mux.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusNotFound {
+		t.Errorf("Expected 404 for bad request (no route), got %v", status)
 	}
 }

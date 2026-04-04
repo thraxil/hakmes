@@ -67,10 +67,11 @@ func main() {
 
 func getMux(s *site) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", makeHandler(indexHandler, s))
-	mux.HandleFunc("/file/", makeHandler(retrieveHandler, s))
-	mux.HandleFunc("/info/", makeHandler(fileInfoHandler, s))
-	mux.HandleFunc("/favicon.ico", faviconHandler)
+	mux.HandleFunc("GET /{$}", makeHandler(infoHandler, s))
+	mux.HandleFunc("POST /{$}", makeHandler(postFileHandler, s))
+	mux.HandleFunc("GET /file/{key}/", makeHandler(retrieveHandler, s))
+	mux.HandleFunc("GET /info/{key}/", makeHandler(fileInfoHandler, s))
+	mux.HandleFunc("GET /favicon.ico", faviconHandler)
 	mux.Handle("/metrics", promhttp.Handler())
 	return mux
 }

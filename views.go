@@ -11,21 +11,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"text/template"
 )
-
-func indexHandler(w http.ResponseWriter, r *http.Request, s *site) {
-	if r.Method == "GET" {
-		infoHandler(w, r, s)
-		return
-	}
-	if r.Method == "POST" {
-		postFileHandler(w, r, s)
-		return
-	}
-	http.Error(w, "method not supported", http.StatusMethodNotAllowed)
-}
 
 type infoPage struct {
 	Title     string
@@ -218,9 +205,8 @@ func postFile(f io.Reader, targetURL string) (*http.Response, error) {
 }
 
 func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
-	parts := strings.Split(r.URL.String(), "/")
-	if len(parts) == 4 {
-		key := parts[2]
+	key := r.PathValue("key")
+	if key != "" {
 		k, err := keyFromString(key)
 		if err != nil {
 			http.Error(w, "invalid key", 400)
@@ -242,6 +228,7 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
 		metadata, found := s.Get(k)
 		if !found {
 			http.Error(w, "file not found", 404)
+			return
 		}
 
 		log.Println(metadata.MimeType)
@@ -268,9 +255,8 @@ func retrieveHandler(w http.ResponseWriter, r *http.Request, s *site) {
 }
 
 func fileInfoHandler(w http.ResponseWriter, r *http.Request, s *site) {
-	parts := strings.Split(r.URL.String(), "/")
-	if len(parts) == 4 {
-		key := parts[2]
+	key := r.PathValue("key")
+	if key != "" {
 		k, err := keyFromString(key)
 		if err != nil {
 			http.Error(w, "invalid key", 400)
@@ -292,6 +278,7 @@ func fileInfoHandler(w http.ResponseWriter, r *http.Request, s *site) {
 		metadata, found := s.Get(k)
 		if !found {
 			http.Error(w, "file not found", 404)
+			return
 		}
 
 		log.Println(metadata.MimeType)
